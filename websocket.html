@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>测试websocket</title>
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        var wsHost = '127.0.0.1:8911';
+        var wsServer = 'ws://'+wsHost+'/?id=myftest&token=xxx';
+
+        var websocket = new WebSocket(wsServer);
+
+        websocket.onopen = function (evt) {
+            console.log("Connected to WebSocket server.");
+            appentHtml("Connected to WebSocket server.");
+
+            websocket.onclose = function (evt) {
+                console.log('Disconnected data from server: ' + evt.data);
+                console.log("Disconnected");
+                var error = "WebSocket连接关闭:"+evt.data;
+                appentHtml(error);
+            };
+
+            websocket.onmessage = function (evt) {
+                console.log('Retrieved data from server: ' + evt.data);
+                appentHtml('Retrieved data from server: ' + evt.data);
+            };
+        };
+
+        websocket.onerror = function (evt, e) {
+            var error = 'WebSocket连接失败: ' + evt.data;
+            console.log(error);
+            appentHtml(error);
+        };
+
+        function appentHtml(html) {
+            var newHtml = new Date()+":"+html+"<br/>";
+            $("#result").prepend(newHtml);
+        }
+
+        $(document).ready(function () {
+            $("#btnSubmit").click(function () {
+                var msg = $("#txtMessage").val();
+                appentHtml("Send Message "+msg);
+                websocket.send(msg);
+            });
+        });
+
+    </script>
+</head>
+<body>
+<input type="text" id="txtMessage" > <input type="button" id="btnSubmit" value="发送">
+<div id="result"></div>
+</body>
+</html>

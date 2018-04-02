@@ -1,0 +1,11 @@
+{
+    "autoload": {
+        "psr-4": {
+            "Myf\\": "Myf/"
+        }
+    },
+    "require": {
+        "illuminate/container": "^5.4",
+        "katzgrau/klogger": "dev-master"
+    }
+}
