@@ -1,2 +1,2 @@
-# myfscoket
-基于swoole的webscoket服务
+# myfsocket
+基于swoole的websocket服务

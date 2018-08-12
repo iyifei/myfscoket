@@ -12,4 +12,6 @@ return [
         'password'=>'123456',
         'db'=>1,
     ),
+    //存储缓存fd与uid关系的
+    'memDB'=>2,
 ];

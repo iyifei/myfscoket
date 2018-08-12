@@ -11,11 +11,6 @@ class QueueKey
 {
 
     /**
-     * 终端给服务器的消息
-     */
-    const Terminal_to_Server_Topic = 'Terminal_to_Server_Topic';
-
-    /**
      * 终端给服务器的消费消息
      */
     const Terminal_to_Server_Once = 'Terminal_to_Server_Once';
@@ -24,10 +19,5 @@ class QueueKey
      * 服务器给的终端消息
      */
     const Server_to_Terminal_Topic = 'Server_to_Terminal_Topic';
-
-    /**
-     * 服务器给的终端消费消息
-     */
-    const Server_to_Terminal_Once = 'Server_to_Terminal_Once';
 
 }

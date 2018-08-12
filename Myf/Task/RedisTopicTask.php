@@ -10,6 +10,7 @@ namespace Myf\Task;
 
 
 use Myf\Libs\Logger;
+use Myf\Libs\MemData;
 use Myf\Libs\RedisClient;
 
 class RedisTopicTask implements BaseTask
@@ -31,7 +32,18 @@ class RedisTopicTask implements BaseTask
 
     function execute() {
         $redis = RedisClient::getInstance();
-        $callback = function($redis, $channel, $msg) {
+        /**
+         * Function:
+         * 1.请描述方法的功能
+         * 2.其他信息
+         *
+         * @param \Redis $redis redis
+         * @param string $channel 订阅渠道
+         * @param $msg
+         *
+         * @return void
+         */
+        $callback = function($redis, $channel, $msg){
             $data = [
                 'redis'=>$redis,
                 'channel'=>$channel,
@@ -46,13 +58,20 @@ class RedisTopicTask implements BaseTask
     function trigger($data) {
         $msg = $data['msg'];
         $json = json_decode($msg,true);
-        $res = false;
         if($json['server']==$this->serverFlag){
-            $fd = $json['fd'];
+            $db = config('redis.memDB');
+            $this->logger->debug(sprintf("Receive db=%s",$db));
+            $redis = RedisClient::getInstance($db);
+            $fd = $redis->hGet($this->serverFlag,$json['uid']);
             $message = $json['message'];
-            $res = $this->ws->push($fd,$message);
+            try{
+                $this->logger->debug(sprintf("Receive Fd=%s",$fd));
+                $res = $this->ws->push($fd,$message);
+            }catch (\Exception $e){
+                $res = false;
+            }
+            $this->logger->debug(sprintf("TOPIC=%s,fd=【%s】,msg=【%s】,result=%s",$data['channel'],$fd,$msg,intval($res)));
         }
-        $this->logger->debug(sprintf("TOPIC=%s,msg=【%s】,result=%s",$data['channel'],$msg,intval($res)));
 
     }
 }
