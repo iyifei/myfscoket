@@ -12,6 +12,8 @@ return [
         'password'=>'123456',
         'db'=>1,
     ),
-    //存储缓存fd与uid关系的
-    'memDB'=>2,
+    //webSocket队列监听db
+    'queue'=>1,
+    //webSocket交换数据缓存db
+    'cache'=>2,
 ];

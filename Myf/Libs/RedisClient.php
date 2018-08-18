@@ -47,5 +47,29 @@ class RedisClient
         return $instance;
     }
 
+    /**
+     * Function:getWebSocketQueueDB
+     * 获取WebSocket队列监听的redis数据实例
+     *
+     * @throws \Exception
+     * @return mixed|\Redis
+     */
+    public static function getWebSocketQueueDB(){
+        $db = config('redis.queue');
+        return self::getInstance($db);
+    }
+
+    /**
+     * Function:getWebSocketShareDB
+     * 获取WebSocket共享数据缓存redis数据实例
+     *
+     * @throws \Exception
+     * @return mixed|\Redis
+     */
+    public static function getWebSocketShareDB(){
+        $db = config('redis.cache');
+        return self::getInstance($db);
+    }
+
 
 }

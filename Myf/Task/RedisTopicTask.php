@@ -9,8 +9,8 @@
 namespace Myf\Task;
 
 
+use Myf\GEnum\QueueAction;
 use Myf\Libs\Logger;
-use Myf\Libs\MemData;
 use Myf\Libs\RedisClient;
 
 class RedisTopicTask implements BaseTask
@@ -31,7 +31,7 @@ class RedisTopicTask implements BaseTask
     }
 
     function execute() {
-        $redis = RedisClient::getInstance();
+        $redis = RedisClient::getWebSocketQueueDB();
         /**
          * Function:
          * 1.请描述方法的功能
@@ -59,18 +59,22 @@ class RedisTopicTask implements BaseTask
         $msg = $data['msg'];
         $json = json_decode($msg,true);
         if($json['server']==$this->serverFlag){
-            $db = config('redis.memDB');
-            $this->logger->debug(sprintf("Receive db=%s",$db));
-            $redis = RedisClient::getInstance($db);
-            $fd = $redis->hGet($this->serverFlag,$json['uid']);
-            $message = $json['message'];
-            try{
-                $this->logger->debug(sprintf("Receive Fd=%s",$fd));
-                $res = $this->ws->push($fd,$message);
-            }catch (\Exception $e){
-                $res = false;
+            $hRedis = RedisClient::getWebSocketShareDB();
+            $fd = $hRedis->hGet($this->serverFlag,$json['uid']);
+            if($fd){
+                try{
+                    //关闭
+                    if($json['action']==QueueAction::Close){
+                        $res = $this->ws->close($fd);
+                    }else{
+                        $message = $json['message'];
+                        $res = $this->ws->push($fd,$message);
+                    }
+                }catch (\Exception $e){
+                    $res = false;
+                }
+                $this->logger->debug(sprintf("TOPIC=%s,fd=【%s】,msg=【%s】,result=%s",$data['channel'],$fd,$msg,intval($res)));
             }
-            $this->logger->debug(sprintf("TOPIC=%s,fd=【%s】,msg=【%s】,result=%s",$data['channel'],$fd,$msg,intval($res)));
         }
 
     }

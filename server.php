@@ -10,6 +10,7 @@
 use Illuminate\Container\Container;
 use Myf\Event\IQueue;
 use Myf\Event\RedisQueue;
+use Myf\GEnum\QueueAction;
 use Myf\GEnum\QueueKey;
 use Myf\Libs\Logger;
 use Myf\Libs\RedisClient;
@@ -43,14 +44,13 @@ $serverIp = getServerIp();
 $serverFlag = sprintf("%s-%s",$serverIp,$wsConfig['port']);
 $ws->serverFlag = $serverFlag;
 
-//redis访问
-$memDB = config('redis.memDB');
-$redis = RedisClient::getInstance($memDB);
-
 //监听WebSocket连接事件
-$ws->on("open", function ($ws, $request) use ($logger,$queue,$serverFlag,$redis){
+$ws->on("open", function ($ws, $request) use ($logger,$queue,$serverFlag){
+    //redis访问
+    $redis = RedisClient::getWebSocketShareDB();
     $fd = $request->fd;
     $get = isset($request->get)?$request->get:[];
+    //socket通道唯一标识
     $uid =  md5(uniqid(microtime(true),true));
     $logger->debug(sprintf("WebSocket->open: fd=【%s】,uid=【%s】,serverFlag=【%s】, request=【%s】", $request->fd,$uid,$serverFlag, json_encode($get)));
     $refuse = true;
@@ -58,11 +58,12 @@ $ws->on("open", function ($ws, $request) use ($logger,$queue,$serverFlag,$redis)
         //生成新的映射关系
         $redis->hSet($serverFlag,$uid,$fd);
         $redis->hSet($serverFlag,$fd,$uid);
+        $redis->hSet(QueueKey::Server_Uid_Relation,$uid,$serverFlag);
 
         $refuse = false;
         $data = [
             'uid'=>$uid,
-            'action'=>'connect',
+            'action'=>QueueAction::Connect,
             'server'=>$serverFlag,
             'data'=>$get,
         ];
@@ -76,13 +77,15 @@ $ws->on("open", function ($ws, $request) use ($logger,$queue,$serverFlag,$redis)
 
 
 //监听WebSocket消息事件
-$ws->on("message", function ($ws, $frame) use ($logger,$queue,$serverFlag,$redis){
+$ws->on("message", function ($ws, $frame) use ($logger,$queue,$serverFlag){
+    //redis访问
+    $redis = RedisClient::getWebSocketShareDB();
     $fd = $frame->fd;
     $uid = $redis->hGet($serverFlag,$fd);
     $logger->debug(sprintf("WebSocket->message: fd=【%s】,uid=【%s】,data=【%s】", $fd,$uid, $frame->data));
     $data = [
         'uid'=>$uid,
-        'action'=>'message',
+        'action'=>QueueAction::Message,
         'server'=>$serverFlag,
         'data'=>$frame->data,
     ];
@@ -91,19 +94,42 @@ $ws->on("message", function ($ws, $frame) use ($logger,$queue,$serverFlag,$redis
 });
 
 //监听WebSocket连接关闭事件
-$ws->on("close", function ($ws, $fd, $reactorId) use ($logger,$queue,$serverFlag,$redis) {
+$ws->on("close", function ($ws, $fd, $reactorId) use ($logger,$queue,$serverFlag) {
+    //redis访问
+    $redis = RedisClient::getWebSocketShareDB();
     $uid = $redis->hGet($serverFlag,$fd);
+    //解除绑定关系
+    $redis->hDel($serverFlag,$uid);
+    $redis->hDel($serverFlag,$fd);
+    $redis->hDel(QueueKey::Server_Uid_Relation,$uid);
     $logger->debug(sprintf("WebSocket->close: fd=【%s】,uid=【%s】,reactorId=【%s】", $fd,$uid, $reactorId));
     $data = [
-        'fd'=>$fd,
-        'action'=>'close',
+        'uid'=>$uid,
+        'action'=>QueueAction::Close,
         'server'=>$serverFlag,
     ];
     $queue->push(QueueKey::Terminal_to_Server_Once,json_encode($data));
 });
 
 //swoole启动成功事件
-$ws->on("start", function ($ws) use ($serverFlag,$logger,$container,$redis) {
+$ws->on("start", function ($ws) use ($serverFlag,$logger,$container,$queue) {
+    //redis访问
+    $redis = RedisClient::getWebSocketShareDB();
+    $all = $redis->hGetAll($serverFlag);
+    if($all){
+        foreach ($all as $uid=>$val){
+            if(!is_numeric($uid)){
+                //告诉服务器该终端以及离线，马上删除
+                $data = [
+                    'uid'=>$uid,
+                    'action'=>QueueAction::Close,
+                    'server'=>$serverFlag,
+                ];
+                $queue->push(QueueKey::Terminal_to_Server_Once,json_encode($data));
+                $redis->hDel(QueueKey::Server_Uid_Relation,$uid);
+            }
+        }
+    }
     $redis->del($serverFlag);
 
     $masterPid = $ws->master_pid;

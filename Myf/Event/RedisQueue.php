@@ -15,7 +15,7 @@ class RedisQueue implements IQueue
 {
 
     private function getRedis(){
-        return RedisClient::getInstance();
+        return RedisClient::getWebSocketQueueDB();
     }
 
 

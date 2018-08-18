@@ -20,4 +20,7 @@ class QueueKey
      */
     const Server_to_Terminal_Topic = 'Server_to_Terminal_Topic';
 
+    //服务器与uid的关系
+    const Server_Uid_Relation = "Server_Uid_Relation";
+
 }
